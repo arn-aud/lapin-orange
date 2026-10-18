@@ -4,7 +4,7 @@ Ephemeral, end-to-end encrypted text transfer between two devices. One static HT
 
 ## Use
 
-1. Open `https://<you>.github.io/clip/` on the computer. It shows a QR code.
+1. Open `https://arn-aud.github.io/lapin-orange/` on the computer. It shows a QR code.
 2. Open the same address on the phone, tap **Scan a code**, point at the screen.
 3. Check the code in the top bar (e.g. `3F9A-C210`) matches on both screens.
 4. Paste, **Send** (or Ctrl/⌘+Enter). Tap **Copy** on the other side.
