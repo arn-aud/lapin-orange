@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="__CSP__">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Clip</title>
+<style>__STYLE__</style>
+</head>
+<body>
+<header>
+  <h1>Clip</h1>
+  <span id="status" data-kind="wait">Starting…</span>
+  <code id="fp" title="Session fingerprint: must match on both devices"></code>
+</header>
+
+<main>
+  <section id="pair" hidden>
+    <canvas id="qr" width="320" height="320" aria-label="Pairing QR code"></canvas>
+    <p>Scan this from your other device: open this same page there and tap <b>Scan a code</b>.</p>
+    <p class="small">Check the code in the top bar matches on both screens.</p>
+    <div class="row">
+      <button id="scan-btn" type="button">Scan a code</button>
+      <button id="back" type="button" class="ghost" hidden>Back to session</button>
+    </div>
+  </section>
+
+  <section id="scan" hidden>
+    <video id="video" playsinline muted></video>
+    <p id="scan-err" class="small" role="alert"></p>
+    <button id="scan-cancel" type="button" class="ghost">Cancel</button>
+  </section>
+
+  <section id="session" hidden>
+    <textarea id="text" rows="5" placeholder="Paste text here…" spellcheck="false" autocomplete="off"></textarea>
+    <div class="row">
+      <button id="send" type="button">Send</button>
+      <button id="paste" type="button" class="ghost">Paste</button>
+      <span class="spacer"></span>
+      <button id="show-qr" type="button" class="ghost">Show QR</button>
+      <button id="end" type="button" class="danger">End</button>
+    </div>
+    <p id="note" class="small" role="alert" hidden></p>
+    <ul id="items"></ul>
+  </section>
+
+  <section id="ended" hidden>
+    <p id="ended-reason"></p>
+    <button id="restart" type="button">New session</button>
+  </section>
+</main>
+
+<footer class="small">End-to-end encrypted (AES-256-GCM). Key travels only via the QR code. Nothing is stored.</footer>
+<script>__SCRIPT__</script>
+</body>
+</html>

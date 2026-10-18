@@ -1,0 +1,24 @@
+{
+  "name": "clip",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E2E-encrypted, ephemeral text clipboard between two devices, paired by QR code.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test:unit": "node --test 'tests/unit/*.test.mjs'",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit && npm run test:e2e",
+    "verify": "node scripts/verify-live.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0",
+    "esbuild": "0.28.2",
+    "jsqr": "1.4.0",
+    "qrcode-generator": "2.0.4"
+  }
+}
