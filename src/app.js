@@ -273,11 +273,26 @@ function stopScan() {
 
 // ---------- gate ----------
 // Decoy "404" until the phrase is entered. Nothing is generated or sent before that.
+// Desktop: type anywhere + Enter. Any device: triple-tap "404" to show a real password field
+// inside a <form>, so password managers can fill and save it.
 function gate(onOpen) {
+  const form = $('gate-form');
   const input = $('gate-in');
+  const eye = $('gate-eye');
   let buf = '';
   let busy = false;
   let taps = 0, tapT = 0;
+
+  const setMasked = (masked) => {
+    input.type = masked ? 'password' : 'text';
+    eye.textContent = masked ? 'Show' : 'Hide';
+    eye.setAttribute('aria-label', masked ? 'Show passphrase' : 'Hide passphrase');
+  };
+  const closeField = () => {
+    form.hidden = true;
+    input.value = '';
+    setMasked(true);
+  };
 
   const attempt = async (phrase) => {
     if (busy || !phrase) return;
@@ -285,20 +300,21 @@ function gate(onOpen) {
     const p = await gateCheck(phrase, GATE).catch(() => null);
     busy = false;
     buf = '';
-    input.value = '';
-    if (!p) return; // wrong: stay a boring 404, no feedback
+    if (!p) {           // wrong: stay a boring 404, just clear the field
+      input.value = '';
+      return;
+    }
     pepper = p;
     document.removeEventListener('keydown', onKey);
     input.blur();
-    $('gate').remove();
+    $('gate').remove(); // a submitted form leaving the DOM is the cue password managers use to offer saving
     for (const id of ['top', 'app', 'foot']) $(id).hidden = false;
     document.title = 'Clip';
     onOpen();
   };
 
-  // Desktop: type anywhere, Enter.
   const onKey = (e) => {
-    if (e.target === input || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (form.contains(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'Enter') attempt(buf);
     else if (e.key === 'Backspace') buf = buf.slice(0, -1);
     else if (e.key === 'Escape') buf = '';
@@ -306,14 +322,21 @@ function gate(onOpen) {
   };
   document.addEventListener('keydown', onKey);
 
-  // Phone: triple-tap the 404 to summon the keyboard, type, Enter.
   $('g404').addEventListener('click', () => {
     const t = Date.now();
     taps = t - tapT < 600 ? taps + 1 : 1;
     tapT = t;
-    if (taps >= 3) { taps = 0; input.focus(); }
+    if (taps < 3) return;
+    taps = 0;
+    form.hidden = false; // must be visible before focus(), in the same gesture, or iOS won't raise the keyboard
+    input.focus();
   });
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); attempt(input.value); } });
+  eye.addEventListener('click', () => { setMasked(input.type === 'text'); input.focus(); });
+  form.addEventListener('submit', (e) => { e.preventDefault(); attempt(input.value); });
+  // Tapping away with nothing typed puts the decoy back.
+  form.addEventListener('focusout', () => setTimeout(() => {
+    if (!form.contains(document.activeElement) && !input.value && !busy) closeField();
+  }, 150));
 }
 
 // ---------- boot ----------

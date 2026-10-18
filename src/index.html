@@ -14,7 +14,14 @@
 <div id="gate">
   <h1 id="g404">404</h1>
   <p>Not Found</p>
-  <input id="gate-in" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search">
+  <form id="gate-form" autocomplete="on" hidden>
+    <input id="gate-user" name="username" type="text" autocomplete="username" value="lapin-orange" tabindex="-1" aria-hidden="true">
+    <div class="gate-row">
+      <input id="gate-in" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Passphrase">
+      <button id="gate-eye" type="button" aria-label="Show passphrase">Show</button>
+    </div>
+    <button id="gate-go" type="submit">Enter</button>
+  </form>
 </div>
 
 <header id="top" hidden>

@@ -52,4 +52,9 @@ footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid var(--line);
 #gate { position: fixed; inset: 0; background: #fff; color: #222; font: 16px/1.5 Georgia, "Times New Roman", serif; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; -webkit-user-select: none; user-select: none; }
 #gate h1 { font: 400 48px/1 Georgia, "Times New Roman", serif; margin: 0 0 8px; cursor: default; -webkit-tap-highlight-color: transparent; }
 #gate p { margin: 0; color: #666; }
-#gate-in { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+#gate-form { margin-top: 24px; display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(320px, 100% - 32px); }
+#gate-user { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+.gate-row { display: flex; gap: 6px; }
+#gate-in { flex: 1; min-width: 0; font: 16px/1.4 ui-monospace, Menlo, monospace; padding: 10px 12px; color: #222; background: #fff; border: 1px solid #bbb; border-radius: 6px; }
+#gate-in:focus { outline: 2px solid #888; outline-offset: 1px; }
+#gate-eye, #gate-go { font: 15px/1 system-ui, sans-serif; padding: 10px 12px; border-radius: 6px; border: 1px solid #bbb; background: #f4f4f4; color: #222; }

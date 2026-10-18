@@ -266,7 +266,7 @@ test('locked page is a bare 404: no app UI, no key, no network', async ({ browse
   await p.goto(BASE);
   await expect(p).toHaveTitle('404 Not Found');
   await expect(p.locator('#g404')).toHaveText('404');
-  for (const id of ['#top', '#app', '#foot']) await expect(p.locator(id)).toBeHidden();
+  for (const id of ['#top', '#app', '#foot', '#gate-form']) await expect(p.locator(id)).toBeHidden();
   const qrBlank = await p.evaluate(() => {
     const c = document.getElementById('qr');
     return c.getContext('2d').getImageData(0, 0, c.width, c.height).data.every((v) => v === 0);
@@ -327,4 +327,68 @@ test('the QR alone is not enough: traffic uses a key that also needs the phrase'
   expect(seen.has(qrOnlyTopic)).toBe(false);
   expect([...seen]).toEqual([mixedTopic]);
   await s.close();
+});
+
+test('triple-tap shows a real, password-manager friendly field', async ({ browser }) => {
+  const ctx = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  await createBroker().attach(ctx);
+  const p = await ctx.newPage();
+  const problems = await instrument(p);
+  await p.goto(BASE);
+  await expect(p.locator('#gate-in')).toBeHidden();
+  await p.click('#g404', { clickCount: 3 });
+  const field = p.locator('#gate-in');
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  // What password managers look for: a form, a username, a current-password field.
+  await expect(p.locator('form#gate-form')).toHaveCount(1);
+  await expect(field).toHaveAttribute('type', 'password');
+  await expect(field).toHaveAttribute('autocomplete', 'current-password');
+  await expect(field).toHaveAttribute('name', 'password');
+  await expect(p.locator('#gate-user')).toHaveAttribute('autocomplete', 'username');
+  const box = await field.boundingBox();
+  expect(box.width).toBeGreaterThan(150);
+
+  await p.keyboard.type('lapin');
+  await p.click('#gate-eye');
+  await expect(field).toHaveAttribute('type', 'text');
+  await expect(field).toHaveValue('lapin');
+  await expect(field).toBeFocused();
+  await p.click('#gate-eye');
+  await expect(field).toHaveAttribute('type', 'password');
+
+  await p.keyboard.type(' test phrase');
+  await p.click('#gate-go');
+  await expect(p.locator('#pair')).toBeVisible();
+  await expect(p.locator('#gate')).toHaveCount(0);
+  expect(problems).toEqual([]);              // incl. no CSP form-action violation on submit
+  await ctx.close();
+});
+
+test('wrong phrase in the field clears it and stays locked', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  await createBroker().attach(ctx);
+  const p = await ctx.newPage();
+  await p.goto(BASE);
+  await p.click('#g404', { clickCount: 3 });
+  await p.keyboard.type('nope nope');
+  await p.keyboard.press('Enter');
+  await expect(p.locator('#gate-in')).toHaveValue('');
+  await expect(p.locator('#app')).toBeHidden();
+  await p.keyboard.type(PHRASE);
+  await p.keyboard.press('Enter');
+  await expect(p.locator('#pair')).toBeVisible();
+  await ctx.close();
+});
+
+test('dismissing an empty field brings back the plain decoy', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  await createBroker().attach(ctx);
+  const p = await ctx.newPage();
+  await p.goto(BASE);
+  await p.click('#g404', { clickCount: 3 });
+  await expect(p.locator('#gate-in')).toBeVisible();
+  await p.click('body', { position: { x: 5, y: 5 } });
+  await expect(p.locator('#gate-form')).toBeHidden();
+  await ctx.close();
 });

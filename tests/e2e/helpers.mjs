@@ -98,6 +98,7 @@ export async function unlock(page, { phrase = PHRASE, phone = false } = {}) {
   await page.locator('#g404').waitFor();
   if (phone) {
     await page.click('#g404', { clickCount: 3 });
+    await page.locator('#gate-in').waitFor({ state: 'visible' });
     await page.waitForFunction(() => document.activeElement?.id === 'gate-in');
   }
   await page.keyboard.type(phrase);

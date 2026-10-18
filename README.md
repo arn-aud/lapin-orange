@@ -4,7 +4,7 @@ Ephemeral, end-to-end encrypted text transfer between two devices. One static HT
 
 ## Use
 
-0. The page opens as a plain **404**. Unlock it: on a computer type the passphrase anywhere and press Enter; on a phone triple-tap “404”, type it, press Enter. Wrong phrase: nothing happens.
+0. The page opens as a plain **404**. Unlock it: on a computer type the passphrase anywhere and press Enter; or triple-tap “404” on any device to show a password field (works with password managers, Show/Hide toggle). Wrong phrase: nothing happens.
 1. Open `https://arn-aud.github.io/lapin-orange/` on the computer. It shows a QR code.
 2. Open the same address on the phone, tap **Scan a code**, point at the screen.
 3. Check the code in the top bar (e.g. `3F9A-C210`) matches on both screens.
@@ -47,7 +47,7 @@ Scanning with the phone's native camera app also works, but prefer the in-page s
 ```sh
 npm ci
 npx playwright install chromium
-npm test            # 19 unit + 20 end-to-end tests (test phrase: 'lapin test phrase')
+npm test            # 19 unit + 23 end-to-end tests (test phrase: 'lapin test phrase')
 GATE_PASSPHRASE='…' npm run build   # -> dist/index.html
 RELAY_URL=https://ntfy.example.com npm run build   # self-hosted ntfy (CSP follows)
 ```
