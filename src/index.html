@@ -7,17 +7,23 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light dark">
-<title>Clip</title>
+<title>404 Not Found</title>
 <style>__STYLE__</style>
 </head>
 <body>
-<header>
+<div id="gate">
+  <h1 id="g404">404</h1>
+  <p>Not Found</p>
+  <input id="gate-in" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search">
+</div>
+
+<header id="top" hidden>
   <h1>Clip</h1>
   <span id="status" data-kind="wait">Starting…</span>
   <code id="fp" title="Session fingerprint: must match on both devices"></code>
 </header>
 
-<main>
+<main id="app" hidden>
   <section id="pair" hidden>
     <canvas id="qr" width="320" height="320" aria-label="Pairing QR code"></canvas>
     <p>Scan this from your other device: open this same page there and tap <b>Scan a code</b>.</p>
@@ -53,7 +59,7 @@
   </section>
 </main>
 
-<footer class="small">End-to-end encrypted (AES-256-GCM). Key travels only via the QR code. Nothing is stored.</footer>
+<footer id="foot" class="small" hidden>End-to-end encrypted (AES-256-GCM). Key travels only via the QR code. Nothing is stored.</footer>
 <script>__SCRIPT__</script>
 </body>
 </html>

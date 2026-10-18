@@ -3,6 +3,7 @@ import jsQR from 'jsqr';
 import {
   newKeyBytes, importKey, deriveTopic, fingerprint, pairingUrl, parsePairing,
   seal, unseal, toFrames, Reassembler, ReplayGuard, textBytes, MAX_TEXT_BYTES, b64uEncode,
+  gateCheck, mixKey,
 } from './crypto.js';
 import { Relay } from './relay.js';
 
@@ -13,6 +14,9 @@ const views = ['pair', 'scan', 'session', 'ended'];
 let s = null;          // current session
 let idleTimer = null;
 let scanStop = null;
+let pepper = null;      // set once the gate is passed; required to derive any session key
+
+const GATE = __GATE__;
 
 function show(view) {
   for (const v of views) $(v).hidden = v !== view;
@@ -195,17 +199,20 @@ function drawQr(text) {
 }
 
 async function host() {
-  const raw = newKeyBytes();
-  const url = pairingUrl(location.origin + location.pathname, raw);
-  drawQr(url);
+  const qrRaw = newKeyBytes();
+  drawQr(pairingUrl(location.origin + location.pathname, qrRaw));
+  const raw = await mixKey(qrRaw, pepper);
+  qrRaw.fill(0);
   await startSession(raw, 'host');
   $('show-qr').hidden = false;
   $('back').hidden = true;
   show('pair');
 }
 
-async function join(raw) {
+async function join(qrRaw) {
   stopScan();
+  const raw = await mixKey(qrRaw, pepper);
+  qrRaw.fill(0);
   await startSession(raw, 'join');
   $('show-qr').hidden = true;
   setStatus('Connecting…', 'wait');
@@ -264,6 +271,51 @@ function stopScan() {
   if (scanStop) scanStop();
 }
 
+// ---------- gate ----------
+// Decoy "404" until the phrase is entered. Nothing is generated or sent before that.
+function gate(onOpen) {
+  const input = $('gate-in');
+  let buf = '';
+  let busy = false;
+  let taps = 0, tapT = 0;
+
+  const attempt = async (phrase) => {
+    if (busy || !phrase) return;
+    busy = true;
+    const p = await gateCheck(phrase, GATE).catch(() => null);
+    busy = false;
+    buf = '';
+    input.value = '';
+    if (!p) return; // wrong: stay a boring 404, no feedback
+    pepper = p;
+    document.removeEventListener('keydown', onKey);
+    input.blur();
+    $('gate').remove();
+    for (const id of ['top', 'app', 'foot']) $(id).hidden = false;
+    document.title = 'Clip';
+    onOpen();
+  };
+
+  // Desktop: type anywhere, Enter.
+  const onKey = (e) => {
+    if (e.target === input || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Enter') attempt(buf);
+    else if (e.key === 'Backspace') buf = buf.slice(0, -1);
+    else if (e.key === 'Escape') buf = '';
+    else if (e.key.length === 1 && buf.length < 256) buf += e.key;
+  };
+  document.addEventListener('keydown', onKey);
+
+  // Phone: triple-tap the 404 to summon the keyboard, type, Enter.
+  $('g404').addEventListener('click', () => {
+    const t = Date.now();
+    taps = t - tapT < 600 ? taps + 1 : 1;
+    tapT = t;
+    if (taps >= 3) { taps = 0; input.focus(); }
+  });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); attempt(input.value); } });
+}
+
 // ---------- boot ----------
 function boot() {
   $('send').addEventListener('click', onSend);
@@ -282,10 +334,9 @@ function boot() {
   window.addEventListener('pagehide', () => { if (s) end('Session ended.'); });
 
   const raw = parsePairing(location.hash);
-  // Strip the key from the address bar / current history entry immediately.
+  // Strip the key from the address bar / current history entry immediately, before the gate.
   if (location.hash) history.replaceState(null, '', location.pathname);
-  if (raw) join(raw);
-  else host();
+  gate(() => (raw ? join(raw) : host()));
 }
 
 boot();

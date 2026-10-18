@@ -1,5 +1,6 @@
 import { test, expect, chromium } from '@playwright/test';
-import { createBroker, instrument, readQr, qrToY4m } from './helpers.mjs';
+import { createBroker, instrument, readQr, qrToY4m, unlock, PHRASE } from './helpers.mjs';
+import { parsePairing, deriveTopic, stretch, mixKey } from '../../src/crypto.js';
 
 const BASE = 'http://localhost:4173/';
 
@@ -13,9 +14,11 @@ async function pair(browser, broker) {
   const b = await ctxB.newPage();
   const pa = await instrument(a), pb = await instrument(b);
   await a.goto(BASE);
+  await unlock(a);
   await expect(a.locator('#pair')).toBeVisible();
   const url = await readQr(a);
   await b.goto(url);
+  await unlock(b);
   await expect(b.locator('#session')).toBeVisible();
   await expect(a.locator('#session')).toBeVisible();          // host leaves QR screen once paired
   await expect(a.locator('#status')).toHaveText('Paired');
@@ -188,8 +191,10 @@ test('a fresh page load always generates a fresh key', async ({ browser }) => {
   await broker.attach(ctx);
   const p = await ctx.newPage();
   await p.goto(BASE);
+  await unlock(p);
   const u1 = await readQr(p);
   await p.reload();
+  await unlock(p);
   const u2 = await readQr(p);
   expect(u1).not.toBe(u2);
   await ctx.close();
@@ -222,6 +227,7 @@ test('in-page camera scan pairs without the key ever touching the URL', async ({
   await broker.attach(ctxA);
   const a = await ctxA.newPage();
   await a.goto(BASE);
+  await unlock(a);
   const url = await readQr(a);
 
   const video = info.outputPath('qr.y4m');
@@ -234,6 +240,7 @@ test('in-page camera scan pairs without the key ever touching the URL', async ({
   const b = await ctxB.newPage();
   const problems = await instrument(b);
   await b.goto(BASE);
+  await unlock(b, { phone: true });
   await b.click('#scan-btn');
   await expect(b.locator('#session')).toBeVisible({ timeout: 15000 });
   await expect(a.locator('#status')).toHaveText('Paired');
@@ -245,4 +252,79 @@ test('in-page camera scan pairs without the key ever touching the URL', async ({
   expect(problems).toEqual([]);
   await phone.close();
   await ctxA.close();
+});
+
+// ---------- gate ----------
+test('locked page is a bare 404: no app UI, no key, no network', async ({ browser }) => {
+  const broker = createBroker();
+  const ctx = await browser.newContext();
+  await broker.attach(ctx);
+  const p = await ctx.newPage();
+  const ntfy = [];
+  p.on('request', (r) => { if (r.url().includes('ntfy.sh')) ntfy.push(r.url()); });
+  p.on('websocket', (w) => ntfy.push(w.url()));
+  await p.goto(BASE);
+  await expect(p).toHaveTitle('404 Not Found');
+  await expect(p.locator('#g404')).toHaveText('404');
+  for (const id of ['#top', '#app', '#foot']) await expect(p.locator(id)).toBeHidden();
+  const qrBlank = await p.evaluate(() => {
+    const c = document.getElementById('qr');
+    return c.getContext('2d').getImageData(0, 0, c.width, c.height).data.every((v) => v === 0);
+  });
+  expect(qrBlank).toBe(true);
+  await p.waitForTimeout(500);
+  expect(ntfy).toEqual([]);
+  await ctx.close();
+});
+
+test('wrong phrase keeps the decoy, silently', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  await createBroker().attach(ctx);
+  const p = await ctx.newPage();
+  await p.goto(BASE);
+  await p.keyboard.type('open sesame');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(1500);
+  await expect(p.locator('#g404')).toBeVisible();
+  await expect(p.locator('#app')).toBeHidden();
+  await unlock(p); // buffer was reset: the right phrase still works afterwards
+  await expect(p.locator('#pair')).toBeVisible();
+  await expect(p).toHaveTitle('Clip');
+  await ctx.close();
+});
+
+test('phrase is forgiving about case and spacing', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  await createBroker().attach(ctx);
+  const p = await ctx.newPage();
+  await p.goto(BASE);
+  await unlock(p, { phrase: '  ' + PHRASE.toUpperCase().replace(/ /g, '   ') + ' ' });
+  await expect(p.locator('#pair')).toBeVisible();
+  await ctx.close();
+});
+
+test('pairing fragment is stripped before the gate is even passed', async ({ browser }) => {
+  const s = await pair(browser, createBroker());
+  const ctx = await browser.newContext();
+  await createBroker().attach(ctx);
+  const c = await ctx.newPage();
+  await c.goto(s.url);
+  await expect(c.locator('#g404')).toBeVisible();
+  expect(c.url()).toBe(BASE);
+  await ctx.close();
+  await s.close();
+});
+
+test('the QR alone is not enough: traffic uses a key that also needs the phrase', async ({ browser }) => {
+  const broker = createBroker();
+  const s = await pair(browser, broker);
+  await sendText(s.a, 'needs both factors');
+  await expect(s.b.locator('#items li.in')).toHaveCount(1);
+  const qrRaw = parsePairing(s.url);
+  const qrOnlyTopic = await deriveTopic(qrRaw);
+  const mixedTopic = await deriveTopic(await mixKey(qrRaw, (await stretch(PHRASE)).pepper));
+  const seen = new Set(broker.published.map((p) => p.topic));
+  expect(seen.has(qrOnlyTopic)).toBe(false);
+  expect([...seen]).toEqual([mixedTopic]);
+  await s.close();
 });

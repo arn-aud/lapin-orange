@@ -2,6 +2,8 @@ import jsQR from 'jsqr';
 import qrcode from 'qrcode-generator';
 import { writeFile } from 'node:fs/promises';
 
+export const PHRASE = 'lapin test phrase'; // matches playwright.config.mjs build env
+
 // In-process stand-in for ntfy.sh. Records every byte the "server" receives,
 // so tests can assert the relay never sees plaintext or the key.
 export function createBroker() {
@@ -89,4 +91,18 @@ export async function qrToY4m(text, path, { w = 640, h = 480, frames = 3 } = {})
   const header = Buffer.from(`YUV4MPEG2 W${w} H${h} F15:1 Ip A1:1 C420jpeg\n`);
   const frame = Buffer.concat([Buffer.from('FRAME\n'), Y, UV]);
   await writeFile(path, Buffer.concat([header, ...Array(frames).fill(frame)]));
+}
+
+// Pass the decoy gate like a user would: type anywhere (desktop) or triple-tap the 404 (phone).
+export async function unlock(page, { phrase = PHRASE, phone = false } = {}) {
+  await page.locator('#g404').waitFor();
+  if (phone) {
+    await page.click('#g404', { clickCount: 3 });
+    await page.waitForFunction(() => document.activeElement?.id === 'gate-in');
+  }
+  await page.keyboard.type(phrase);
+  await page.keyboard.press('Enter');
+  if (phrase.trim().toLowerCase().replace(/\s+/g, ' ') === PHRASE) {
+    await page.locator('#app').waitFor({ state: 'visible', timeout: 15000 });
+  }
 }

@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: { ...devices['Desktop Chrome'], trace: 'retain-on-failure' },
   webServer: {
-    command: 'node build.mjs && node tests/serve.mjs',
+    command: "GATE_PASSPHRASE='lapin test phrase' node build.mjs && node tests/serve.mjs",
     url: 'http://localhost:4173/',
     reuseExistingServer: !process.env.CI,
   },

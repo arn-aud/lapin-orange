@@ -2,6 +2,12 @@
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { stretch, GATE_SALT, GATE_ITER } from './src/crypto.js';
+
+// Fail closed: no phrase, no build. The phrase itself never lands in the output, only its verifier.
+const phrase = process.env.GATE_PASSPHRASE;
+if (!phrase || phrase.trim().length < 8) throw new Error('GATE_PASSPHRASE env var required (8+ chars)');
+const gate = { salt: GATE_SALT, iter: GATE_ITER, v: (await stretch(phrase)).verifier };
 
 const relay = new URL(process.env.RELAY_URL || 'https://ntfy.sh');
 if (relay.protocol !== 'https:' || relay.pathname !== '/') throw new Error('RELAY_URL must be https://host with no path');
@@ -17,7 +23,7 @@ const { outputFiles } = await build({
   minify: false,          // keep it readable: you should be able to audit what you serve
   legalComments: 'inline',
   write: false,
-  define: { __RELAY__: JSON.stringify(relayHttp) },
+  define: { __RELAY__: JSON.stringify(relayHttp), __GATE__: JSON.stringify(gate) },
 });
 const script = outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const style = await readFile('src/style.css', 'utf8');

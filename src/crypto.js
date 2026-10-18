@@ -178,3 +178,33 @@ export class ReplayGuard {
 export function textBytes(s) {
   return te.encode(s).length;
 }
+
+// ---------- gate (passphrase) ----------
+// Discretion gate. The phrase is also mixed into the session key, so a QR photo alone is useless.
+export const GATE_SALT = 'clip/gate/v1';
+export const GATE_ITER = 600_000;
+
+// Forgiving on phone keyboards: case, extra spaces, auto-capitalisation, unicode forms.
+export function normalizePhrase(p) {
+  return String(p).normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// 512 bits from PBKDF2: first half = public verifier, second half = secret pepper.
+// Halves of a PRF output are independent, so the verifier reveals nothing about the pepper.
+export async function stretch(phrase, { salt = GATE_SALT, iter = GATE_ITER } = {}) {
+  const base = await subtle.importKey('raw', te.encode(normalizePhrase(phrase)), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: te.encode(salt), iterations: iter }, base, 512));
+  return { verifier: b64uEncode(bits.slice(0, 32)), pepper: bits.slice(32) };
+}
+
+// Returns the pepper when the phrase is right, null otherwise.
+export async function gateCheck(phrase, gate) {
+  const { verifier, pepper } = await stretch(phrase, gate);
+  return verifier === gate.v ? pepper : null;
+}
+
+// Session key = HKDF(QR key, salt = pepper). Both are needed to derive topic and AES key.
+export async function mixKey(qrRaw, pepper) {
+  const ikm = await subtle.importKey('raw', qrRaw, 'HKDF', false, ['deriveBits']);
+  return new Uint8Array(await subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: pepper, info: te.encode('clip/key/v1') }, ikm, 256));
+}

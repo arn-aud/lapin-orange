@@ -150,3 +150,48 @@ test('replay guard rejects repeats and out-of-window timestamps', () => {
   g.accept('e', t);
   assert.equal(g.seen.has('a'), false);                 // pruned
 });
+
+// ---------- gate ----------
+import { normalizePhrase, stretch, gateCheck, mixKey } from '../../src/crypto.js';
+const FAST = { salt: 'clip/gate/test', iter: 1000 };
+
+test('phrase normalisation ignores case, spacing and unicode forms', () => {
+  assert.equal(normalizePhrase('  Lapin   ORANGE\tvole '), 'lapin orange vole');
+  assert.equal(normalizePhrase('café'), normalizePhrase('café'));
+});
+
+test('gate accepts only the right phrase and returns a 256-bit pepper', async () => {
+  const { verifier } = await stretch('lapin orange', FAST);
+  const gate = { ...FAST, v: verifier };
+  const pepper = await gateCheck('LAPIN  orange', gate);
+  assert.equal(pepper.length, 32);
+  assert.equal(await gateCheck('lapin bleu', gate), null);
+  assert.equal(await gateCheck('', gate), null);
+});
+
+test('verifier and pepper are independent halves', async () => {
+  const { verifier, pepper } = await stretch('x y z', FAST);
+  assert.notEqual(verifier, b64uEncode(pepper));
+  assert.equal(b64uDecode(verifier).length, 32);
+});
+
+test('session key needs both the QR key and the phrase', async () => {
+  const qr = newKeyBytes();
+  const p1 = (await stretch('phrase one', FAST)).pepper;
+  const p2 = (await stretch('phrase two', FAST)).pepper;
+  const k1 = await mixKey(qr, p1);
+  assert.equal(k1.length, 32);
+  assert.deepEqual(k1, await mixKey(qr, p1));
+  assert.notDeepEqual(k1, await mixKey(qr, p2));
+  assert.notDeepEqual(k1, qr);
+  assert.notDeepEqual(k1, await mixKey(newKeyBytes(), p1));
+});
+
+test('build refuses to run without a phrase', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const env = { ...process.env };
+  delete env.GATE_PASSPHRASE;
+  const r = spawnSync(process.execPath, ['build.mjs'], { env, encoding: 'utf8' });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /GATE_PASSPHRASE/);
+});
