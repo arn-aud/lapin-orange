@@ -15,7 +15,7 @@ Scanning with the phone's native camera app also works, but prefer the in-page s
 
 ## How it works
 
-- **Gate**: the passphrase (repo secret `GATE_PASSPHRASE`, never committed) is stretched with PBKDF2-SHA256, 600k iterations, into 512 bits. The first half is embedded as a public verifier; the second half is a secret pepper. Session key = `HKDF(QR key, salt = pepper)`, so a photo of the QR is useless without the phrase. Before unlock the page generates no key and opens no connection. It is a discretion layer: the verifier is public, so a weak phrase can be brute-forced offline. Use 4+ random words.
+- **Gate**: the passphrase (repo secret `GATE_PASSPHRASE`, never committed) is stretched with PBKDF2-SHA256, 600k iterations, into 512 bits. The first half is embedded as a public verifier; the second half is a secret pepper. Session key = `HKDF(QR key, salt = pepper)`, so a photo of the QR is useless without the phrase. Before unlock the page generates no key and opens no connection. It is a discretion layer: the verifier is public, so a short phrase can be brute-forced offline from the page source. Fine for discretion; use more words if you ever need it to resist a determined attacker.
 
 - The computer generates a random 256-bit key in the browser. The QR carries it in the URL `#fragment`, which browsers never send to any server.
 - Relay topic = `SHA-256("clip/topic/v1" ‖ key)` truncated to 128 bits. The QR holds only the key.

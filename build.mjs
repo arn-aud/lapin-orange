@@ -6,7 +6,7 @@ import { stretch, GATE_SALT, GATE_ITER } from './src/crypto.js';
 
 // Fail closed: no phrase, no build. The phrase itself never lands in the output, only its verifier.
 const phrase = process.env.GATE_PASSPHRASE;
-if (!phrase || phrase.trim().length < 8) throw new Error('GATE_PASSPHRASE env var required (8+ chars)');
+if (!phrase || !phrase.trim()) throw new Error('GATE_PASSPHRASE env var required');
 const gate = { salt: GATE_SALT, iter: GATE_ITER, v: (await stretch(phrase)).verifier };
 
 const relay = new URL(process.env.RELAY_URL || 'https://ntfy.sh');
